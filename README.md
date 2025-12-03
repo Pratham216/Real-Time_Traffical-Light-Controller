@@ -1,157 +1,163 @@
 # 🚦 Smart Traffic Light Controller
 
-An intelligent traffic light control system that uses YOLOv8 object detection, multi-object tracking, and SUMO simulation to adaptively control traffic signal timings based on real-time vehicle counts.
-
-[![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://www.python.org/downloads/)
-[![Streamlit](https://img.shields.io/badge/Streamlit-Latest-red.svg)](https://streamlit.io/)
-[![YOLOv8](https://img.shields.io/badge/YOLOv8-Ultralytics-green.svg)](https://github.com/ultralytics/ultralytics)
-[![SUMO](https://img.shields.io/badge/SUMO-Integration-orange.svg)](https://www.eclipse.org/sumo/)
-
----
+An intelligent, adaptive traffic light control system that uses computer vision and machine learning to optimize traffic flow at intersections. The system dynamically adjusts traffic light timings based on real-time vehicle detection and tracking.
 
 ## 📋 Table of Contents
 
-- [Features](#-features)
-- [Architecture](#-architecture)
-- [Installation](#-installation)
-- [Usage](#-usage)
-- [Technical Details](#-technical-details)
-- [Project Structure](#-project-structure)
-- [Configuration](#-configuration)
-- [Performance](#-performance)
-- [Future Enhancements](#-future-enhancements)
-- [Contributing](#-contributing)
-- [License](#-license)
-
----
+- [Features](#features)
+- [Architecture](#architecture)
+- [Installation](#installation)
+- [Usage](#usage)
+- [Components](#components)
+- [Traffic Light Control Algorithm](#traffic-light-control-algorithm)
+- [Statistics and Analytics](#statistics-and-analytics)
+- [Configuration](#configuration)
+- [File Structure](#file-structure)
+- [Requirements](#requirements)
 
 ## ✨ Features
 
-### 🎥 Video-Based Traffic Analysis
-- **YOLOv8 Vehicle Detection**: Real-time detection of cars, motorcycles, buses, and trucks
-  - Model options: YOLOv8n (nano), YOLOv8s (small - default), YOLOv8m (medium)
-  - GPU acceleration with FP16 precision support
-  - Custom fine-tuned model support for emergency vehicles
-  - Optimized confidence threshold (0.25) for better motorcycle detection
+### Core Functionality
 
-- **Multi-Object Tracking**: ByteTrack integration
-  - Maintains consistent vehicle IDs across frames
-  - Prevents double-counting
-  - Tracks vehicle trajectories
-  - Supports emergency vehicle detection (ambulance, fire truck, police)
+1. **Real-Time Vehicle Detection**
+   - YOLOv8-based object detection (supports nano, small, and medium models)
+   - Detects cars, motorcycles, buses, and trucks
+   - Custom fine-tuned model support for emergency vehicle detection
+   - Configurable confidence thresholds
 
-- **Dynamic Lane Detection**: Automatic lane identification
-  - Hough Transform-based lane boundary detection
-  - Canny edge detection and line clustering
-  - Vehicle-to-lane assignment
-  - Supports 1-6 lanes (configurable)
+2. **Multi-Object Tracking**
+   - ByteTrack algorithm for robust vehicle tracking
+   - Maintains vehicle IDs across frames
+   - Tracks vehicle positions and movements
 
-- **Adaptive Timing Algorithm**: Dynamic traffic light timing
-  - Formula: `Green Time = min(max(Min Green, Base Green + (Scaling Factor × Vehicle Count)), Max Green)`
-  - Configurable parameters: base green, scaling factor, min/max green times
-  - Fixed yellow and all-red intervals for safety
-  - Per-lane timing calculation
+3. **Dynamic Lane Detection**
+   - Automatic lane detection using Hough Transform
+   - Manual lane configuration support
+   - Vehicle-to-lane assignment
+   - Supports 1-6 lanes per direction
 
-- **Vehicle Weighting System**: Priority-based traffic control
-  - Different weights for different vehicle types (cars, buses, trucks, motorcycles)
-  - Emergency vehicle prioritization
-  - Weighted vehicle counting for more accurate traffic assessment
+4. **Adaptive Traffic Light Control**
+   - Dynamic timing adjustment based on vehicle density
+   - Weighted vehicle counting (buses and trucks count more)
+   - Emergency vehicle prioritization
+   - Real-time phase optimization
 
-### 🚗 SUMO Traffic Simulation Integration
-- **Full SUMO Integration**: Complete traffic simulation environment
-  - Real-time traffic simulation with SUMO
-  - Integrated adaptive traffic light controller
-  - Lane-based traffic control system
-  - Supports multiple lanes for comprehensive intersection control
-  - Dynamic traffic signal management based on real-time vehicle detection
+5. **SUMO Simulation Integration**
+   - Full SUMO traffic simulation support
+   - Real-time traffic light control in SUMO
+   - Vehicle count extraction from SUMO
+   - Lane-based traffic management
 
-- **Traffic Light Controller Integration**:
-  - Seamless integration of adaptive timing algorithm with SUMO simulation
-  - Real-time vehicle detection and counting from SUMO simulation
-  - Automatic traffic light phase control based on traffic density
-  - Configurable traffic control cycles
-  - Support for complex intersection scenarios
-
-- **Vehicle Speed Control**:
-  - Red lanes: Vehicles stopped (speed = 0)
-  - Green lanes: Vehicles move freely (speed unrestricted)
-  - Smooth transitions between traffic light phases
-
-### 🖥️ User Interface (Streamlit)
-- **Dual Mode Operation**:
-  - **Real Camera Mode**: Process uploaded traffic videos
-  - **SUMO Simulation Mode**: Run traffic simulations with adaptive control
-
-- **Configuration Options**:
-  - Model selection (Pretrained COCO or Custom Fine-Tuned)
-  - Model size selection (nano/small/medium)
-  - Confidence threshold adjustment
-  - Device selection (CPU/CUDA)
-  - Lane detection settings
-  - Vehicle weight parameters
-  - Emergency vehicle detection toggle
-  - Timing parameters (base green, scaling factor, min/max green)
-  - Performance settings (FPS, frame skip, resize)
-
-- **Control Features**:
-  - Start/Stop simulation buttons
-  - Reset functionality
-  - Save statistics to CSV
-  - Real-time video display with annotations
-  - Live timing table updates
-  - Statistics dashboard
-
----
+6. **Comprehensive Statistics**
+   - Latency tracking (processing time between frames)
+   - Throughput measurement (vehicles processed per second)
+   - Initial and final vehicle counts
+   - Detailed CSV export with all metrics
+   - Real-time performance graphs
 
 ## 🏗️ Architecture
 
-### Core Modules
+The system consists of several modular components:
 
-| Module | Description |
-|--------|-------------|
-| `app.py` | Main Streamlit application - User interface and controls |
-| `detection.py` | YOLOv8 vehicle detection - Model loading and inference |
-| `tracking.py` | Multi-object tracking - ByteTrack integration |
-| `lanes.py` | Lane detection - Hough Transform lane detection |
-| `timing.py` | Adaptive timing controller - Timing algorithm implementation |
-| `sumo_integration.py` | SUMO simulation - Traffic light controller integration |
-| `utils.py` | Utility functions - Traffic logging and data formatting |
-| `vehicle_weights.py` | Vehicle weighting system - Weight management |
-
----
-
-## 🚀 Installation
-
-### Prerequisites
-- Python 3.8 or higher
-- CUDA-capable GPU (optional, for faster processing)
-
-### Step 1: Clone the Repository
-```bash
-git clone https://github.com/Pratham216/Real-Time_Traffical-Light-Controller.git
-cd Real-Time_Traffical-Light-Controller
+```
+┌─────────────────┐
+│   Video Input   │
+│  (Camera/File)  │
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│  Vehicle        │
+│  Detection      │
+│  (YOLOv8)       │
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│  Vehicle        │
+│  Tracking       │
+│  (ByteTrack)    │
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│  Lane           │
+│  Detection      │
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│  Vehicle Count  │
+│  per Lane       │
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│  Weighted       │
+│  Counting       │
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│  Adaptive       │
+│  Timing         │
+│  Controller     │
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│  Traffic Light  │
+│  Control        │
+└─────────────────┘
 ```
 
-### Step 2: Install Dependencies
+## 📦 Installation
+
+### Prerequisites
+
+- Python 3.8 or higher
+- CUDA-capable GPU (optional, for faster inference)
+- SUMO (for simulation mode)
+
+### Step 1: Clone the Repository
+
+```bash
+git clone <repository-url>
+cd traffic-test
+```
+
+### Step 2: Install Python Dependencies
+
 ```bash
 pip install -r requirements.txt
 ```
 
-### Step 3: Install SUMO (for simulation mode)
-- Download SUMO from [https://www.eclipse.org/sumo/](https://www.eclipse.org/sumo/)
+### Step 3: Install SUMO (Optional, for Simulation Mode)
+
+**Windows:**
+- Download from [SUMO Download Page](https://sumo.dlr.de/docs/Downloads.php)
 - Add SUMO to your system PATH
-- Verify installation: `sumo --version`
 
-### Step 4: Download YOLOv8 Models
-The models (`.pt` files) are excluded from the repository. You can:
-- Download them automatically (they'll be downloaded on first run)
-- Or download manually from [Ultralytics](https://github.com/ultralytics/ultralytics)
+**Linux:**
+```bash
+sudo apt-get install sumo sumo-tools sumo-doc
+```
 
----
+**macOS:**
+```bash
+brew install sumo
+```
 
-## 💻 Usage
+### Step 4: Download YOLOv8 Models (Optional)
 
-### Running the Application
+The system will automatically download models on first use, or you can download them manually:
+- `yolov8n.pt` - Nano (fastest, least accurate)
+- `yolov8s.pt` - Small (balanced, recommended)
+- `yolov8m.pt` - Medium (most accurate, slower)
+
+## 🚀 Usage
+
+### Starting the Application
 
 ```bash
 streamlit run app.py
@@ -159,182 +165,461 @@ streamlit run app.py
 
 The application will open in your default web browser at `http://localhost:8501`
 
-### Basic Workflow
+### Operation Modes
 
-1. **Select Mode**:
-   - Choose "Real Camera Mode" for video processing
-   - Choose "SUMO Simulation Mode" for traffic simulation
+#### 1. Real Camera Mode
 
-2. **Configure Settings**:
-   - Select model size (nano/small/medium)
-   - Adjust confidence threshold
-   - Set lane detection parameters
-   - Configure timing parameters
+Process video files or camera feeds:
 
-3. **Start Processing**:
-   - Upload a video file (for Real Camera Mode)
-   - Click "Start Simulation" (for SUMO Mode)
+1. Select **"Real Camera"** mode from the sidebar
+2. Upload a video file (MP4, AVI, MOV)
+3. Configure detection and timing parameters
+4. Click **"Start Processing"**
+5. View real-time results and statistics
+6. Save statistics to CSV when done
 
-4. **View Results**:
-   - Real-time video display with annotations
-   - Live statistics dashboard
-   - Download statistics as CSV
+#### 2. SUMO Simulation Mode
 
----
+Run traffic simulations with adaptive control:
 
-## 🔧 Technical Details
+1. Select **"SUMO Simulation"** mode from the sidebar
+2. Specify SUMO configuration file path
+3. Configure simulation parameters
+4. Click **"Start SUMO Simulation"**
+5. Monitor real-time traffic flow and light timings
+6. Stop simulation anytime with **"Stop Simulation"** button
+7. View comprehensive results and graphs
+8. Export statistics to CSV
 
-### Model Support
-- **YOLOv8n.pt**: Nano model (fastest, least accurate)
-- **YOLOv8s.pt**: Small model (balanced, default) ⭐
-- **YOLOv8m.pt**: Medium model (most accurate, slower)
-- **Custom Models**: Support for fine-tuned models with emergency vehicles
+## 🔧 Components
 
-### Vehicle Classes Detected
-| Class | ID | Description |
-|-------|----|----|
-| Car | 2 | Standard passenger vehicles |
-| Motorcycle | 3 | Motorcycles and scooters |
-| Bus | 5 | Buses and large passenger vehicles |
-| Truck | 7 | Trucks and commercial vehicles |
-| Emergency | 8-10 | Ambulance, Fire Truck, Police (custom) |
+### 1. Vehicle Detection (`detection.py`)
 
-### Traffic Control Parameters
+- **YOLOv8 Integration**: Uses Ultralytics YOLOv8 for object detection
+- **Vehicle Classes**: Detects cars (class 2), motorcycles (class 3), buses (class 5), trucks (class 7)
+- **Custom Models**: Supports fine-tuned models for emergency vehicle detection
+- **Device Support**: CUDA GPU acceleration or CPU fallback
 
-| Parameter | Default Value | Description |
-|-----------|---------------|-------------|
-| Base Green Time | 5.0 seconds | Minimum green time per cycle |
-| Scaling Factor | 1.0 sec/vehicle | Additional time per vehicle |
-| Min Green Time | 5.0 seconds | Absolute minimum green time |
-| Max Green Time | 60.0 seconds | Maximum allowed green time |
-| Yellow Time | 3.0 seconds | Fixed yellow interval |
-| All-Red Time | 1.0 seconds | Fixed all-red clearance time |
+### 2. Vehicle Tracking (`tracking.py`)
 
-### SUMO Integration Features
+- **ByteTrack Algorithm**: Multi-object tracking via Ultralytics
+- **Track Management**: Maintains consistent vehicle IDs across frames
+- **Position Tracking**: Tracks vehicle bottom-center positions for lane assignment
+- **Emergency Detection**: Identifies emergency vehicles from custom models
 
-| Feature | Description |
-|---------|-------------|
-| Real-time Detection | Vehicle detection and counting from SUMO simulation |
-| Adaptive Control | Traffic light timing adjusts based on vehicle density |
-| Multi-lane Support | Handles complex intersections with multiple lanes |
-| Phase Management | Automatic traffic light phase transitions |
-| Cycle Control | Configurable traffic light cycle management |
+### 3. Lane Detection (`lanes.py`)
 
----
+- **Hough Transform**: Detects lane markings using edge detection
+- **Auto-Detection**: Automatically determines number of lanes
+- **Manual Configuration**: Supports manual lane count specification
+- **ROI-Based**: Uses Region of Interest for improved accuracy
+- **Vehicle Assignment**: Assigns vehicles to lanes based on position
 
-## 📁 Project Structure
+### 4. Vehicle Weighting (`vehicle_weights.py`)
 
+- **Weighted Counting**: Different vehicle types have different weights
+- **Default Weights**:
+  - Car: 3.0
+  - Motorcycle: 2.0
+  - Bus: 5.0
+  - Truck: 4.0
+  - Ambulance: 10.0 (highest priority)
+  - Fire Truck: 10.0 (highest priority)
+  - Police: 8.0 (very high priority)
+- **Customizable**: All weights can be adjusted via UI
+
+### 5. Adaptive Timing Controller (`timing.py`)
+
+- **Adaptive Formula**: `Gi = min(max(Gmin, G0 + k * Ni), Gmax)`
+  - `Gi`: Green time for lane i
+  - `G0`: Base green time
+  - `k`: Scaling factor (seconds per vehicle)
+  - `Ni`: Vehicle count (weighted or raw) for lane i
+  - `Gmin`: Minimum green time
+  - `Gmax`: Maximum green time
+- **Dynamic Cycle Time**: Adjusts based on traffic density
+- **Phase Management**: Manages green, yellow, and red phases
+
+### 6. SUMO Integration (`sumo_integration.py`)
+
+- **TraCI Communication**: Real-time communication with SUMO via TraCI
+- **Lane Mapping**: Maps SUMO lanes to internal lane IDs
+- **Vehicle Counting**: Extracts vehicle counts per lane from SUMO
+- **Traffic Light Control**: Applies adaptive timings to SUMO traffic lights
+- **Speed Control**: Uses lane-based speed control when traffic lights unavailable
+
+### 7. Statistics Logger (`utils.py`)
+
+- **Frame-by-Frame Logging**: Records all metrics for each frame/step
+- **Performance Metrics**: Tracks latency and throughput
+- **Vehicle Counts**: Records initial and final vehicle counts
+- **CSV Export**: Exports detailed data and summary statistics
+- **Graph Generation**: Creates visualizations for analysis
+
+## 🚦 Traffic Light Control Algorithm
+
+### Current Implementation
+
+The system uses an **adaptive timing algorithm** that dynamically adjusts green light durations based on vehicle density:
+
+#### Algorithm Overview
+
+1. **Vehicle Detection & Counting**
+   - Detects and tracks vehicles in each lane
+   - Applies vehicle weights (buses/trucks count more)
+   - Prioritizes emergency vehicles
+
+2. **Green Time Calculation**
+   - For each lane i: `Gi = min(max(Gmin, G0 + k * Ni), Gmax)`
+   - Where:
+     - `Ni` = weighted vehicle count in lane i
+     - `G0` = base green time (default: 5 seconds)
+     - `k` = scaling factor (default: 1.0 seconds/vehicle)
+     - `Gmin` = minimum green time (default: 5 seconds)
+     - `Gmax` = maximum green time (default: 60 seconds)
+
+3. **Cycle Time Calculation**
+   - Total cycle time = max(Gi) + yellow_time + all_red_time
+   - Ensures all lanes complete their green phase
+
+4. **Phase Sequencing**
+   - Each lane gets its calculated green time
+   - Yellow phase: fixed duration (default: 3 seconds)
+   - All-red phase: fixed duration (default: 1 second)
+   - Red time: calculated as cycle_time - green_time - yellow_time - all_red_time
+
+### Recommended Implementation
+
+For a production system, the following enhancements should be implemented:
+
+#### 1. Priority-Based Phase Selection
+
+Instead of fixed sequencing, select phases based on priority:
+
+```python
+def select_next_phase(lane_counts, current_phase, timings):
+    """
+    Select next phase based on vehicle density and priority
+    
+    Priority factors:
+    - Vehicle count (weighted)
+    - Waiting time
+    - Emergency vehicles present
+    - Queue length
+    """
+    priorities = {}
+    for lane_id, count in lane_counts.items():
+        waiting_time = get_waiting_time(lane_id)
+        emergency_present = check_emergency_vehicles(lane_id)
+        
+        priority = (
+            count * 0.4 +                    # Vehicle density (40%)
+            waiting_time * 0.3 +              # Waiting time (30%)
+            emergency_present * 100 * 0.3    # Emergency priority (30%)
+        )
+        priorities[lane_id] = priority
+    
+    # Select lane with highest priority
+    next_lane = max(priorities, key=priorities.get)
+    return create_phase_for_lane(next_lane, timings)
 ```
-Real-Time_Traffical-Light-Controller/
-├── app.py                      # Main Streamlit application
-├── detection.py                # YOLOv8 vehicle detection
-├── tracking.py                 # ByteTrack multi-object tracking
-├── lanes.py                    # Dynamic lane detection
-├── timing.py                   # Adaptive timing calculation
-├── sumo_integration.py         # SUMO simulation integration
-├── utils.py                    # Helper functions and logging
-├── vehicle_weights.py          # Vehicle weighting system
-├── emergency_detector.py       # Emergency vehicle detection
-├── requirements.txt            # Python dependencies
-├── README.md                   # Project documentation
-├── .gitignore                  # Git ignore rules
-└── sumo_scenarios/             # SUMO simulation scenarios
-    └── intersection/
-        ├── intersection.sumocfg
-        ├── intersection.net.xml
-        ├── intersection.rou.xml
-        └── intersection.add.xml
+
+#### 2. Conflict-Free Phase Management
+
+Ensure no conflicting lanes get green simultaneously:
+
+```python
+def create_conflict_free_phases(lanes, conflicts):
+    """
+    Create phases ensuring no conflicts
+    
+    Args:
+        lanes: List of all lanes
+        conflicts: Dictionary mapping lane -> list of conflicting lanes
+    
+    Returns:
+        List of phase groups (lanes that can be green together)
+    """
+    phase_groups = []
+    remaining_lanes = set(lanes)
+    
+    while remaining_lanes:
+        # Find maximum independent set
+        current_phase = []
+        for lane in sorted(remaining_lanes, key=lambda x: lane_counts[x], reverse=True):
+            # Check if lane conflicts with any lane in current phase
+            if not any(lane in conflicts.get(conflict_lane, []) 
+                      for conflict_lane in current_phase):
+                current_phase.append(lane)
+        
+        phase_groups.append(current_phase)
+        remaining_lanes -= set(current_phase)
+    
+    return phase_groups
 ```
 
-> **Note**: Model files (`.pt`) are excluded from the repository via `.gitignore`
+#### 3. Dynamic Cycle Time Optimization
 
----
+Adjust cycle time based on overall traffic:
+
+```python
+def optimize_cycle_time(lane_counts, base_cycle, min_cycle, max_cycle):
+    """
+    Optimize cycle time based on total traffic
+    
+    Formula: C = C_base * (1 + α * (N_total / N_threshold))
+    """
+    total_vehicles = sum(lane_counts.values())
+    threshold = 20  # Threshold for normal traffic
+    alpha = 0.1     # Scaling factor
+    
+    if total_vehicles < threshold:
+        # Light traffic: shorter cycles
+        cycle_time = base_cycle * (1 - alpha)
+    else:
+        # Heavy traffic: longer cycles
+        cycle_time = base_cycle * (1 + alpha * (total_vehicles / threshold))
+    
+    return max(min_cycle, min(cycle_time, max_cycle))
+```
+
+#### 4. Emergency Vehicle Preemption
+
+Immediate priority for emergency vehicles:
+
+```python
+def check_emergency_preemption(lanes, emergency_vehicles):
+    """
+    Check if emergency vehicle requires immediate green
+    
+    Returns:
+        Lane ID that should get immediate green, or None
+    """
+    for lane_id, vehicles in emergency_vehicles.items():
+        if vehicles:
+            # Emergency vehicle detected: immediate green
+            return lane_id
+    return None
+
+def apply_emergency_preemption(current_phase, emergency_lane):
+    """
+    Interrupt current phase for emergency vehicle
+    """
+    if emergency_lane:
+        # Immediately switch to emergency lane
+        # Shorten current green phase if needed
+        # Skip to emergency lane green phase
+        return create_emergency_phase(emergency_lane)
+    return current_phase
+```
+
+#### 5. Queue Length Estimation
+
+Consider queue length, not just visible vehicles:
+
+```python
+def estimate_queue_length(lane_id, current_count, historical_data):
+    """
+    Estimate total queue length including vehicles not yet visible
+    
+    Uses historical data and vehicle arrival rates
+    """
+    arrival_rate = calculate_arrival_rate(lane_id, historical_data)
+    waiting_time = get_average_waiting_time(lane_id)
+    
+    # Estimate: visible + (arrival_rate * waiting_time)
+    estimated_queue = current_count + (arrival_rate * waiting_time)
+    return estimated_queue
+```
+
+#### 6. Predictive Timing
+
+Use historical patterns for better timing:
+
+```python
+def predictive_timing(lane_id, current_count, time_of_day, day_of_week):
+    """
+    Use historical patterns to predict optimal timing
+    
+    Considers:
+    - Time of day patterns
+    - Day of week patterns
+    - Current traffic conditions
+    """
+    historical_pattern = get_historical_pattern(lane_id, time_of_day, day_of_week)
+    predicted_demand = historical_pattern * current_count
+    
+    # Adjust timing based on predicted demand
+    return calculate_timing(predicted_demand)
+```
+
+## 📊 Statistics and Analytics
+
+### Metrics Tracked
+
+1. **Latency (ms)**
+   - Processing time between frames/steps
+   - Average, minimum, and maximum latency
+   - Helps identify performance bottlenecks
+
+2. **Throughput (vehicles/second)**
+   - Vehicles processed per second
+   - System efficiency metric
+   - Average and maximum throughput
+
+3. **Vehicle Counts**
+   - Initial vehicle count (start of simulation)
+   - Final vehicle count (end of simulation)
+   - Per-lane vehicle counts over time
+   - Total vehicles processed
+
+4. **Timing Data**
+   - Green, yellow, and red times per lane
+   - Cycle times
+   - Phase transitions
+
+5. **Performance Graphs**
+   - Latency over time
+   - Throughput over time
+   - Total vehicles over time
+   - Lane-wise vehicle counts
+
+### CSV Export
+
+Two CSV files are generated:
+
+1. **Detailed Data CSV** (`traffic_stats_YYYYMMDD_HHMMSS.csv`)
+   - Frame-by-frame data
+   - All metrics for each time step
+   - Lane-specific counts and timings
+
+2. **Summary Statistics CSV** (`traffic_stats_YYYYMMDD_HHMMSS_summary.csv`)
+   - Overall statistics
+   - Performance metrics
+   - Initial/final counts
+   - Average, min, max values
 
 ## ⚙️ Configuration
 
-### Environment Variables
-You can configure the system using environment variables or through the Streamlit UI:
+### Detection Parameters
 
-- `CUDA_VISIBLE_DEVICES`: Specify GPU device (e.g., "0" for first GPU)
-- `SUMO_HOME`: Path to SUMO installation (if not in PATH)
+- **Model Size**: nano (fastest), small (balanced), medium (most accurate)
+- **Confidence Threshold**: 0.1 - 0.9 (lower = more detections, may include false positives)
+- **Device**: CUDA (GPU) or CPU
 
-### Model Configuration
-Edit the model settings in `app.py` or use the UI:
-- Default model: `yolov8s.pt`
-- Confidence threshold: `0.25`
-- Device: Auto-detect (CPU/CUDA)
+### Lane Detection
 
----
+- **Number of Lanes**: 1-6 lanes per direction
+- **ROI Ratio**: 0.3 - 0.9 (portion of frame height for detection)
 
-## 📊 Performance
+### Vehicle Weights
 
-### Detection Performance
-- **Model**: YOLOv8s (small) - balanced accuracy and speed
-- **Confidence Threshold**: 0.25 (optimized for small vehicles)
-- **Device Support**: CPU and CUDA (GPU)
-- **Frame Rate**: Configurable (5-30 FPS)
+Customizable weights for each vehicle type:
+- Car: 1.0 - 10.0 (default: 3.0)
+- Motorcycle: 1.0 - 10.0 (default: 2.0)
+- Bus: 1.0 - 10.0 (default: 5.0)
+- Truck: 1.0 - 10.0 (default: 4.0)
+- Emergency vehicles: 5.0 - 20.0 (default: 8.0 - 10.0)
 
-### Simulation Performance
-- **Lanes Supported**: Multiple lanes per intersection
-- **Real-time Control**: Dynamic traffic light control based on vehicle detection
-- **Adaptive Timing**: Traffic signals adjust automatically to traffic conditions
-- **Integration**: Seamless connection between SUMO simulation and traffic controller
+### Timing Parameters
+
+- **Base Green Time**: 3.0 - 20.0 seconds (default: 5.0)
+- **Scaling Factor**: 0.1 - 5.0 seconds/vehicle (default: 1.0)
+- **Min Green Time**: 3.0 - 15.0 seconds (default: 5.0)
+- **Max Green Time**: 20.0 - 120.0 seconds (default: 60.0)
+- **Yellow Time**: 1.0 - 5.0 seconds (default: 3.0)
+- **All-Red Time**: 0.5 - 3.0 seconds (default: 1.0)
+
+### Performance Settings
+
+- **Target FPS**: 5 - 60 (default: 30)
+- **Frame Skip**: Process every N frames (1-5, default: 1)
+- **Resize Video**: Resize to 640x480 for faster processing
+
+## 📁 File Structure
+
+```
+traffic-test/
+├── app.py                      # Main Streamlit application
+├── detection.py                # YOLOv8 vehicle detection
+├── tracking.py                 # ByteTrack vehicle tracking
+├── lanes.py                    # Lane detection module
+├── timing.py                   # Adaptive timing controller
+├── vehicle_weights.py         # Vehicle weight management
+├── utils.py                    # Utilities and statistics logger
+├── sumo_integration.py         # SUMO simulation integration
+├── requirements.txt            # Python dependencies
+├── README.md                   # This file
+│
+├── sumo_scenarios/             # SUMO scenario files
+│   └── intersection/
+│       ├── intersection.sumocfg
+│       ├── intersection.net.xml
+│       ├── intersection.rou.xml
+│       └── intersection.add.xml
+│
+└── [Model files]               # YOLOv8 model weights (.pt files)
+```
+
+## 📋 Requirements
+
+### Python Packages
+
+```
+streamlit>=1.28.0
+opencv-python>=4.8.0
+ultralytics>=8.0.0
+numpy>=1.24.0
+pandas>=2.0.0
+scikit-learn>=1.3.0
+scipy>=1.11.0
+```
+
+### Optional Dependencies
+
+```
+traci>=1.18.0          # SUMO TraCI (for simulation mode)
+sumolib>=1.18.0        # SUMO library (for simulation mode)
+```
 
 ### System Requirements
-- **Minimum**: CPU-only processing (slower)
-- **Recommended**: CUDA-capable GPU for real-time processing
-- **RAM**: 4GB minimum, 8GB recommended
-- **Storage**: 2GB for models and dependencies
 
----
+- **CPU**: Multi-core processor recommended
+- **RAM**: 4GB minimum, 8GB recommended
+- **GPU**: NVIDIA GPU with CUDA support (optional, for faster inference)
+- **Storage**: 500MB for application + model files (~500MB per YOLOv8 model)
+
+## 🎯 Use Cases
+
+1. **Traffic Flow Optimization**: Reduce waiting times at intersections
+2. **Emergency Vehicle Priority**: Automatically prioritize emergency vehicles
+3. **Traffic Analysis**: Analyze traffic patterns and optimize infrastructure
+4. **Simulation Testing**: Test traffic light strategies before real-world deployment
+5. **Research & Development**: Study adaptive traffic control algorithms
 
 ## 🔮 Future Enhancements
 
-- [ ] Real-time webcam input support
-- [ ] Multiple intersection control
-- [ ] Traffic flow prediction using historical data
-- [ ] Advanced phase scheduling algorithms
-- [ ] Machine learning-based traffic pattern recognition
-- [ ] Integration with real traffic light hardware
-- [ ] Mobile app interface
+- [ ] Multi-intersection coordination
+- [ ] Pedestrian detection and timing
+- [ ] Weather-aware timing adjustments
+- [ ] Machine learning-based phase prediction
+- [ ] Real-time traffic flow prediction
+- [ ] Integration with traffic management systems
+- [ ] Mobile app for monitoring
 - [ ] Cloud deployment support
-- [ ] REST API for external integrations
-- [ ] Real-time dashboard with WebSocket support
-
----
-
-## 🤝 Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request. For major changes, please open an issue first to discuss what you would like to change.
-
-### How to Contribute
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
-
----
 
 ## 📝 License
 
-This project is open source and available under the [MIT License](LICENSE).
+[Specify your license here]
 
----
+## 👥 Contributors
 
-## 🙏 Acknowledgments
-
-- [Ultralytics](https://github.com/ultralytics/ultralytics) for YOLOv8
-- [ByteTrack](https://github.com/ifzhang/ByteTrack) for multi-object tracking
-- [SUMO](https://www.eclipse.org/sumo/) for traffic simulation
-- [Streamlit](https://streamlit.io/) for the web interface
-
----
+[Add contributor names]
 
 ## 📧 Contact
 
-For questions, suggestions, or support, please open an issue on GitHub.
+[Add contact information]
 
 ---
 
-**Made with ❤️ for smarter traffic management**
+**Note**: This system is designed for research and educational purposes. For production deployment, ensure compliance with local traffic regulations and conduct thorough testing.

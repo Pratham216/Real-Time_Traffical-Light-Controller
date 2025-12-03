@@ -623,6 +623,7 @@ if 'sumo_sim' not in st.session_state:
     st.session_state.sumo_sim = None
     st.session_state.sumo_controller = None
     st.session_state.sumo_running = False
+    st.session_state.sumo_stop_requested = False
 
 # SUMO Simulation Mode
 if mode == "SUMO Simulation":
@@ -728,6 +729,7 @@ if mode == "SUMO Simulation":
                 st.session_state.sumo_sim = sumo_sim
                 st.session_state.sumo_controller = sumo_controller
                 st.session_state.sumo_running = True
+                st.session_state.sumo_stop_requested = False
                 st.session_state.intersection_id = intersection_id
                 
                 # Initialize logger
@@ -757,6 +759,8 @@ if mode == "SUMO Simulation":
         if st.button("⏹️ Stop Simulation", type="secondary"):
             if st.session_state.sumo_running and st.session_state.sumo_sim:
                 try:
+                    # Set stop flag immediately
+                    st.session_state.sumo_stop_requested = True
                     st.session_state.sumo_sim.close()
                     st.session_state.sumo_running = False
                     st.session_state.simulation_stopped = True
@@ -766,6 +770,7 @@ if mode == "SUMO Simulation":
                     st.error(f"Error stopping simulation: {str(e)}")
                     st.session_state.sumo_running = False
                     st.session_state.simulation_stopped = True
+                    st.session_state.sumo_stop_requested = True
             else:
                 st.warning("No simulation running to stop.")
     
@@ -779,6 +784,7 @@ if mode == "SUMO Simulation":
             st.session_state.sumo_sim = None
             st.session_state.sumo_controller = None
             st.session_state.sumo_running = False
+            st.session_state.sumo_stop_requested = False
             st.session_state.simulation_stopped = False
             if 'logger' in st.session_state:
                 st.session_state.logger.reset()
@@ -787,13 +793,53 @@ if mode == "SUMO Simulation":
     with col_btn4:
         if st.button("💾 Save Statistics"):
             if 'logger' in st.session_state:
-                filename = st.session_state.logger.save_to_csv()
-                st.success(f"Statistics saved to {filename}")
+                try:
+                    filename = st.session_state.logger.save_to_csv()
+                    summary_file = Path(filename).parent / f"{Path(filename).stem}_summary.csv"
+                    st.success(f"✅ Statistics saved successfully!")
+                    st.info(f"📁 Detailed data: `{filename}`")
+                    if summary_file.exists():
+                        st.info(f"📁 Summary statistics: `{summary_file}`")
+                    # Also provide download buttons
+                    col_dl1, col_dl2 = st.columns(2)
+                    with col_dl1:
+                        with open(filename, 'rb') as f:
+                            st.download_button(
+                                label="📥 Download Detailed Data",
+                                data=f.read(),
+                                file_name=os.path.basename(filename),
+                                mime="text/csv"
+                            )
+                    with col_dl2:
+                        if summary_file.exists():
+                            with open(summary_file, 'rb') as f:
+                                st.download_button(
+                                    label="📥 Download Summary",
+                                    data=f.read(),
+                                    file_name=os.path.basename(summary_file),
+                                    mime="text/csv"
+                                )
+                except ValueError as e:
+                    st.warning(f"⚠️ {str(e)}")
+                except Exception as e:
+                    st.error(f"❌ Error saving statistics: {str(e)}")
             else:
                 st.warning("No statistics to save. Please start simulation first.")
     
     # Run simulation loop if active
     if st.session_state.sumo_running and st.session_state.sumo_sim and st.session_state.sumo_controller:
+        # Check if stop was requested
+        if st.session_state.get('sumo_stop_requested', False):
+            st.session_state.sumo_running = False
+            st.session_state.simulation_stopped = True
+            st.session_state.sumo_stop_requested = False
+            if st.session_state.sumo_sim:
+                try:
+                    st.session_state.sumo_sim.close()
+                except:
+                    pass
+            st.rerun()
+        
         # Check if traffic lights are available
         traffic_lights_available = st.session_state.get('traffic_lights_available', True)
         
@@ -835,6 +881,18 @@ if mode == "SUMO Simulation":
         # Log statistics
         if 'logger' in st.session_state:
             st.session_state.logger.log_frame(raw_counts, timings, fps=10.0)
+        
+        # Check if stop was requested before continuing
+        if st.session_state.get('sumo_stop_requested', False):
+            st.session_state.sumo_running = False
+            st.session_state.simulation_stopped = True
+            st.session_state.sumo_stop_requested = False
+            if st.session_state.sumo_sim:
+                try:
+                    st.session_state.sumo_sim.close()
+                except:
+                    pass
+            st.rerun()
         
         # Apply timings to SUMO using lane-based speed control (simulates traffic lights)
         # This works even without actual traffic lights in SUMO
@@ -902,72 +960,160 @@ if mode == "SUMO Simulation":
             # Convert to DataFrame
             results_df = logger.to_dataframe()
             
-            # Display summary statistics
-            col1, col2, col3, col4 = st.columns(4)
+            # Get summary statistics
+            summary_stats = logger.get_summary_stats()
+            
+            # Display summary statistics with initial/final counts and performance metrics
+            st.markdown("### 📈 Summary Statistics")
+            col1, col2, col3, col4, col5 = st.columns(5)
             
             with col1:
-                total_frames = len(results_df)
-                st.metric("Total Frames", total_frames)
+                st.metric("Initial Vehicles", summary_stats.get('initial_vehicle_count', 0))
             
             with col2:
-                if 'timestamp' in results_df.columns and len(results_df) > 0:
-                    total_time = results_df['timestamp'].max()
-                    st.metric("Total Time (s)", f"{total_time:.1f}")
-                else:
-                    st.metric("Total Time (s)", "0.0")
+                st.metric("Final Vehicles", summary_stats.get('final_vehicle_count', 0))
             
             with col3:
-                # Calculate average vehicles per frame
-                vehicle_cols = [col for col in results_df.columns if 'lane_' in col and '_count' in col and 'weighted' not in col]
-                if vehicle_cols:
-                    avg_vehicles = results_df[vehicle_cols].sum(axis=1).mean()
-                    st.metric("Avg Vehicles/Frame", f"{avg_vehicles:.1f}")
-                else:
-                    st.metric("Avg Vehicles/Frame", "0")
+                st.metric("Total Time (s)", f"{summary_stats.get('total_simulation_time_sec', 0):.1f}")
             
             with col4:
-                # Calculate total vehicles processed
-                if vehicle_cols:
-                    total_vehicles = results_df[vehicle_cols].sum(axis=1).sum()
-                    st.metric("Total Vehicles", int(total_vehicles))
-                else:
-                    st.metric("Total Vehicles", "0")
+                st.metric("Avg Latency (ms)", f"{summary_stats.get('avg_latency_ms', 0):.2f}")
+            
+            with col5:
+                st.metric("Avg Throughput", f"{summary_stats.get('avg_throughput_vehicles_per_sec', 0):.2f} veh/s")
+            
+            # Additional performance metrics
+            col6, col7, col8 = st.columns(3)
+            with col6:
+                st.metric("Total Frames", summary_stats.get('total_frames', 0))
+            with col7:
+                st.metric("Max Latency (ms)", f"{summary_stats.get('max_latency_ms', 0):.2f}")
+            with col8:
+                st.metric("Max Throughput", f"{summary_stats.get('max_throughput_vehicles_per_sec', 0):.2f} veh/s")
+            
+            # Performance Graphs Section
+            st.markdown("### 📊 Performance Graphs")
+            
+            # Check if required columns exist
+            if 'timestamp' in results_df.columns and 'latency_ms' in results_df.columns:
+                graph_col1, graph_col2 = st.columns(2)
+                
+                with graph_col1:
+                    st.markdown("#### ⏱️ Latency Over Time")
+                    latency_df = pd.DataFrame({
+                        'Time (s)': results_df['timestamp'],
+                        'Latency (ms)': results_df['latency_ms']
+                    })
+                    st.line_chart(latency_df.set_index('Time (s)'), use_container_width=True, height=300)
+                
+                with graph_col2:
+                    st.markdown("#### 🚀 Throughput Over Time")
+                    if 'throughput_vehicles_per_sec' in results_df.columns:
+                        throughput_df = pd.DataFrame({
+                            'Time (s)': results_df['timestamp'],
+                            'Throughput (veh/s)': results_df['throughput_vehicles_per_sec']
+                        })
+                        st.line_chart(throughput_df.set_index('Time (s)'), use_container_width=True, height=300)
+                    else:
+                        st.info("Throughput data not available")
+            
+            # Vehicle Count Graph
+            if 'timestamp' in results_df.columns and 'total_vehicles' in results_df.columns:
+                st.markdown("#### 🚗 Total Vehicles Over Time")
+                vehicles_df = pd.DataFrame({
+                    'Time (s)': results_df['timestamp'],
+                    'Total Vehicles': results_df['total_vehicles']
+                })
+                st.line_chart(vehicles_df.set_index('Time (s)'), use_container_width=True, height=300)
             
             # Display detailed statistics table
-            st.markdown("### 📈 Detailed Statistics")
+            st.markdown("### 📋 Detailed Statistics Table")
             st.dataframe(results_df, use_container_width=True, height=400)
             
             # Display lane-wise summary
             st.markdown("### 🛣️ Lane-wise Summary")
+            vehicle_cols = [col for col in results_df.columns if 'lane_' in col and '_count' in col and 'weighted' not in col]
             lane_summary = []
             # Map lane IDs to directions for 4-way intersection
             direction_names = {0: "North", 1: "East", 2: "South", 3: "West"}
             for col in vehicle_cols:
                 lane_id = col.replace('lane_', '').replace('_count', '')
-                avg_count = results_df[col].mean()
-                max_count = results_df[col].max()
-                total_count = results_df[col].sum()
-                lane_name = direction_names.get(int(lane_id), f"Lane {int(lane_id) + 1}")
-                
-                lane_summary.append({
-                    'Lane': lane_name,
-                    'Avg Vehicles': f"{avg_count:.2f}",
-                    'Max Vehicles': int(max_count),
-                    'Total Vehicles': int(total_count)
-                })
+                try:
+                    lane_id_int = int(lane_id)
+                    avg_count = results_df[col].mean()
+                    max_count = results_df[col].max()
+                    total_count = results_df[col].sum()
+                    lane_name = direction_names.get(lane_id_int, f"Lane {lane_id_int + 1}")
+                    
+                    lane_summary.append({
+                        'Lane': lane_name,
+                        'Avg Vehicles': f"{avg_count:.2f}",
+                        'Max Vehicles': int(max_count),
+                        'Total Vehicles': int(total_count)
+                    })
+                except ValueError:
+                    continue
             
             if lane_summary:
                 summary_df = pd.DataFrame(lane_summary)
                 st.dataframe(summary_df, use_container_width=True, hide_index=True)
             
-            # Download button for results
-            csv_data = results_df.to_csv(index=False)
-            st.download_button(
-                label="📥 Download Results as CSV",
-                data=csv_data,
-                file_name=f"simulation_results_{int(time.time())}.csv",
-                mime="text/csv"
-            )
+            # Summary Statistics Table
+            st.markdown("### 📊 Performance Summary Table")
+            summary_table = pd.DataFrame([{
+                'Metric': 'Initial Vehicle Count',
+                'Value': summary_stats.get('initial_vehicle_count', 0)
+            }, {
+                'Metric': 'Final Vehicle Count',
+                'Value': summary_stats.get('final_vehicle_count', 0)
+            }, {
+                'Metric': 'Total Simulation Time (s)',
+                'Value': f"{summary_stats.get('total_simulation_time_sec', 0):.2f}"
+            }, {
+                'Metric': 'Total Frames',
+                'Value': summary_stats.get('total_frames', 0)
+            }, {
+                'Metric': 'Average Latency (ms)',
+                'Value': f"{summary_stats.get('avg_latency_ms', 0):.2f}"
+            }, {
+                'Metric': 'Min Latency (ms)',
+                'Value': f"{summary_stats.get('min_latency_ms', 0):.2f}"
+            }, {
+                'Metric': 'Max Latency (ms)',
+                'Value': f"{summary_stats.get('max_latency_ms', 0):.2f}"
+            }, {
+                'Metric': 'Average Throughput (veh/s)',
+                'Value': f"{summary_stats.get('avg_throughput_vehicles_per_sec', 0):.2f}"
+            }, {
+                'Metric': 'Max Throughput (veh/s)',
+                'Value': f"{summary_stats.get('max_throughput_vehicles_per_sec', 0):.2f}"
+            }, {
+                'Metric': 'Average Total Vehicles',
+                'Value': f"{summary_stats.get('avg_total_vehicles', 0):.2f}"
+            }, {
+                'Metric': 'Max Total Vehicles',
+                'Value': summary_stats.get('max_total_vehicles', 0)
+            }])
+            st.dataframe(summary_table, use_container_width=True, hide_index=True)
+            
+            # Download buttons
+            col_dl1, col_dl2 = st.columns(2)
+            with col_dl1:
+                csv_data = results_df.to_csv(index=False)
+                st.download_button(
+                    label="📥 Download Detailed Results (CSV)",
+                    data=csv_data,
+                    file_name=f"simulation_results_{int(time.time())}.csv",
+                    mime="text/csv"
+                )
+            with col_dl2:
+                summary_csv = summary_table.to_csv(index=False)
+                st.download_button(
+                    label="📥 Download Summary Statistics (CSV)",
+                    data=summary_csv,
+                    file_name=f"simulation_summary_{int(time.time())}.csv",
+                    mime="text/csv"
+                )
         else:
             st.info("No data collected during simulation.")
 
@@ -1054,8 +1200,22 @@ if mode == "Real Camera":
         with col_btn3:
             if st.button("💾 Save Statistics"):
                 if 'logger' in st.session_state:
-                    filename = st.session_state.logger.save_to_csv()
-                    st.success(f"Statistics saved to {filename}")
+                    try:
+                        filename = st.session_state.logger.save_to_csv()
+                        st.success(f"✅ Statistics saved successfully!")
+                        st.info(f"📁 File location: `{filename}`")
+                        # Also provide download button
+                        with open(filename, 'rb') as f:
+                            st.download_button(
+                                label="📥 Download Statistics File",
+                                data=f.read(),
+                                file_name=os.path.basename(filename),
+                                mime="text/csv"
+                            )
+                    except ValueError as e:
+                        st.warning(f"⚠️ {str(e)}")
+                    except Exception as e:
+                        st.error(f"❌ Error saving statistics: {str(e)}")
                 else:
                     st.warning("No statistics to save. Please process video first.")
         

@@ -8,6 +8,8 @@ import cv2
 from typing import Dict, List, Tuple, Optional
 from datetime import datetime
 import time
+import os
+from pathlib import Path
 
 
 class TrafficLogger:
@@ -18,8 +20,15 @@ class TrafficLogger:
         self.log_data = {
             'timestamp': [],
             'frame_index': [],
+            'latency_ms': [],  # Time between frames in milliseconds
+            'throughput_vehicles_per_sec': [],  # Vehicles processed per second
+            'total_vehicles': [],  # Total vehicles at each frame
         }
         self.frame_index = 0
+        self.last_timestamp = None
+        self.last_frame_time = None
+        self.initial_vehicle_count = None
+        self.final_vehicle_count = None
         
     def add_lane_columns(self, lane_ids: List[int], include_weighted: bool = False):
         """Add columns for new lanes"""
@@ -42,10 +51,45 @@ class TrafficLogger:
             timings: Dictionary mapping lane_id -> timing info (may include weighted_count)
             fps: Video frame rate
         """
+        import time as time_module
+        
         current_time = self.frame_index / fps if fps > 0 else 0.0
+        current_frame_time = time_module.time()
+        
+        # Calculate latency (time between frames)
+        if self.last_frame_time is not None:
+            latency_ms = (current_frame_time - self.last_frame_time) * 1000  # Convert to milliseconds
+        else:
+            latency_ms = 0.0
+        
+        # Calculate total vehicles
+        total_vehicles = sum(raw_counts.values())
+        
+        # Store initial vehicle count
+        if self.initial_vehicle_count is None:
+            self.initial_vehicle_count = total_vehicles
+        
+        # Update final vehicle count
+        self.final_vehicle_count = total_vehicles
+        
+        # Calculate throughput (vehicles per second)
+        if self.last_timestamp is not None and current_time > self.last_timestamp:
+            time_delta = current_time - self.last_timestamp
+            if time_delta > 0:
+                throughput = total_vehicles / time_delta
+            else:
+                throughput = 0.0
+        else:
+            throughput = 0.0
         
         self.log_data['timestamp'].append(current_time)
         self.log_data['frame_index'].append(self.frame_index)
+        self.log_data['latency_ms'].append(latency_ms)
+        self.log_data['throughput_vehicles_per_sec'].append(throughput)
+        self.log_data['total_vehicles'].append(total_vehicles)
+        
+        self.last_timestamp = current_time
+        self.last_frame_time = current_frame_time
         
         # Get all unique lane IDs from both raw_counts and timings
         all_lane_ids = set(raw_counts.keys()) | set(timings.keys())
@@ -79,19 +123,102 @@ class TrafficLogger:
         """Convert log data to pandas DataFrame"""
         return pd.DataFrame(self.log_data)
     
-    def save_to_csv(self, filename: str = "traffic_stats.csv"):
-        """Save log data to CSV file"""
+    def get_summary_stats(self) -> Dict[str, float]:
+        """Get summary statistics including initial/final counts and performance metrics"""
+        if not self.log_data or len(self.log_data.get('timestamp', [])) == 0:
+            return {}
+        
         df = self.to_dataframe()
-        df.to_csv(filename, index=False)
-        return filename
+        if df.empty:
+            return {}
+        
+        summary = {
+            'initial_vehicle_count': self.initial_vehicle_count if self.initial_vehicle_count is not None else 0,
+            'final_vehicle_count': self.final_vehicle_count if self.final_vehicle_count is not None else 0,
+            'total_simulation_time_sec': df['timestamp'].max() if 'timestamp' in df.columns and len(df) > 0 else 0.0,
+            'total_frames': len(df),
+            'avg_latency_ms': df['latency_ms'].mean() if 'latency_ms' in df.columns else 0.0,
+            'max_latency_ms': df['latency_ms'].max() if 'latency_ms' in df.columns else 0.0,
+            'min_latency_ms': df['latency_ms'].min() if 'latency_ms' in df.columns else 0.0,
+            'avg_throughput_vehicles_per_sec': df['throughput_vehicles_per_sec'].mean() if 'throughput_vehicles_per_sec' in df.columns else 0.0,
+            'max_throughput_vehicles_per_sec': df['throughput_vehicles_per_sec'].max() if 'throughput_vehicles_per_sec' in df.columns else 0.0,
+            'avg_total_vehicles': df['total_vehicles'].mean() if 'total_vehicles' in df.columns else 0.0,
+            'max_total_vehicles': df['total_vehicles'].max() if 'total_vehicles' in df.columns else 0.0,
+        }
+        
+        return summary
+    
+    def save_to_csv(self, filename: Optional[str] = None):
+        """
+        Save log data to CSV file with summary statistics
+        
+        Args:
+            filename: Optional filename. If None, generates a timestamped filename.
+            
+        Returns:
+            Full path to saved file
+            
+        Raises:
+            ValueError: If no data to save
+            IOError: If file cannot be written
+        """
+        # Check if there's any data to save
+        if not self.log_data or len(self.log_data.get('timestamp', [])) == 0:
+            raise ValueError("No statistics data to save. Please run simulation or process video first.")
+        
+        # Generate filename if not provided
+        if filename is None:
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = f"traffic_stats_{timestamp}.csv"
+        
+        # Ensure filename has .csv extension
+        if not filename.endswith('.csv'):
+            filename += '.csv'
+        
+        # Get absolute path
+        file_path = Path(filename).resolve()
+        
+        # Create directory if it doesn't exist
+        file_path.parent.mkdir(parents=True, exist_ok=True)
+        
+        # Convert to DataFrame and save
+        try:
+            df = self.to_dataframe()
+            if df.empty:
+                raise ValueError("No statistics data to save. DataFrame is empty.")
+            
+            # Get summary statistics
+            summary = self.get_summary_stats()
+            
+            # Create summary DataFrame
+            summary_df = pd.DataFrame([summary])
+            
+            # Save main data
+            df.to_csv(file_path, index=False)
+            
+            # Append summary statistics to a separate section in the same file
+            # We'll add it as a comment section at the end
+            summary_file = file_path.parent / f"{file_path.stem}_summary.csv"
+            summary_df.to_csv(summary_file, index=False)
+            
+            return str(file_path)
+        except Exception as e:
+            raise IOError(f"Failed to save statistics file: {str(e)}")
     
     def reset(self):
         """Reset logger"""
         self.log_data = {
             'timestamp': [],
             'frame_index': [],
+            'latency_ms': [],
+            'throughput_vehicles_per_sec': [],
+            'total_vehicles': [],
         }
         self.frame_index = 0
+        self.last_timestamp = None
+        self.last_frame_time = None
+        self.initial_vehicle_count = None
+        self.final_vehicle_count = None
 
 
 def draw_vehicle_boxes(frame: np.ndarray, tracks: List[Dict], 
